@@ -4,156 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Number Match (0–10) – Drag Left to Right</title>
-<meta name="description" content="Drag balloons (0–10) to matching star numbers. K–2 friendly and keyboard accessible.">
 <style>
-  :root{
-    --bg:#f8fafc; --surface:#ffffff; --ink:#0f172a; --muted:#475569; --line:#e2e8f0;
-    --brand:#2563eb; --accent:#22c55e; --warn:#ef4444; --shadow:0 10px 30px rgba(2,6,23,.08);
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
-  .container{width:min(1200px,94%);margin-inline:auto;padding:24px 0}
-  h1{margin:0 0 8px;font-size:clamp(1.2rem,1.1rem + 1.2vw,1.9rem)}
-  p.lead{margin:0 0 16px;color:var(--muted)}
-  .stage{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
-  .panel{background:#eef2f7;border:1px solid var(--line);border-radius:16px;min-height:420px;padding:16px}
-  .grid{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:12px}
-  @media (max-width:900px){ .grid{grid-template-columns:repeat(2,minmax(120px,1fr))} }
-  .card{user-select:none; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
-        padding:10px; display:grid; place-items:center; aspect-ratio:1/1;}
-  .card .shape{display:grid; place-items:center; width:86%; aspect-ratio:1/1; color:#fff; font-size:60px; font-weight:900; -webkit-text-stroke: 1px rgba(0,0,0,.15)}
-  .balloon{border-radius:50%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.85) 0 12%, rgba(0,0,0,.06) 13% 14%, var(--c) 15% 100%)}
-  .star{position:relative; background: conic-gradient(from 0deg, var(--c) 0 100%); clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);}
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 10px}
-  button{border:0;background:var(--brand);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
-  button.secondary{background:#0ea5e9}
-  button.ghost{background:#e5e7eb;color:#111827}
-  .drop{outline:2px dashed #93c5fd}
-  .result{margin-top:12px;font-weight:800}
-  .correct{color:var(--accent)} .incorrect{color:var(--warn)}
-  footer{padding:30px 0;color:#64748b}
+  body{font-family:Arial, sans-serif;background:#f8fafc;margin:0;padding:20px}
+  h1{color:#0f172a}
+  .stage{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .panel{background:#eef2f7;border-radius:12px;padding:10px;min-height:400px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .card{background:#fff;border:1px solid #ccc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:bold;aspect-ratio:1/1;user-select:none}
+  .balloon{border-radius:50%;background:#60a5fa;color:#fff}
+  .star{clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);background:#f59e0b;color:#fff}
+  .drop{outline:2px dashed #2563eb}
 </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Number Match (0–10)</h1>
-    <p class="lead">Drag balloons on the left to the matching stars on the right. Press <strong>Check</strong> to see how you did.</p>
-    <div class="toolbar">
-      <button id="shuffleBtn" class="secondary" type="button">Shuffle</button>
-      <button id="checkBtn" type="button">Check</button>
-      <button id="resetBtn" class="ghost" type="button">Reset</button>
-    </div>
-    <div class="stage">
-      <section class="panel" aria-label="Draggable numbers">
-        <div id="left" class="grid"></div>
-      </section>
-      <section class="panel" aria-label="Match targets">
-        <div id="right" class="grid"></div>
-      </section>
-    </div>
-    <div id="result" class="result" aria-live="polite"></div>
-  </div>
-  <footer class="container">© <span id="yr"></span> Tech with Mrs. Brooks • Number Match</footer>
-
+<h1>Number Match (0–10)</h1>
+<p>Drag balloons on the left to the matching stars on the right.</p>
+<div class="stage">
+<section class="panel"><div id="left" class="grid"></div></section>
+<section class="panel"><div id="right" class="grid"></div></section>
+</div>
+<div id="result"></div>
 <script>
-  const nums = [0,1,2,3,4,5,6,7,8,9,10];
-  document.getElementById('yr').textContent = new Date().getFullYear();
-  const left = document.getElementById('left');
-  const right = document.getElementById('right');
-  const res = document.getElementById('result');
-  const colors = ['#10b981','#60a5fa','#38bdf8','#a78bfa','#f472b6','#f59e0b','#22c55e','#ef4444','#fb923c','#06b6d4','#facc15'];
-
-  const makeBalloon = (n)=>{
-    const card = document.createElement('div');
-    card.className='card';
-    card.draggable = true;
-    card.dataset.value = n;
-    card.innerHTML = `<div class="shape balloon" style="--c:${colors[n%colors.length]}">${n}</div>`;
-    return card;
-  };
-
-  const makeStarTarget = (n)=>{
-    const card = document.createElement('div');
-    card.className='card';
-    card.dataset.value = n;
-    card.setAttribute('aria-label','Target '+n);
-    card.innerHTML = `<div class="shape star" style="--c:${colors[n%colors.length]}">${n}</div>`;
-    // mark as drop zone
-    card.addEventListener('dragover', e=>{ e.preventDefault(); card.classList.add('drop'); });
-    card.addEventListener('dragleave', ()=> card.classList.remove('drop'));
-    card.addEventListener('drop', e=>{
-      e.preventDefault();
-      const id = e.dataTransfer.getData('text/value');
-      const dragging = document.querySelector('.card.dragging');
-      if(dragging){
-        // If already a child, replace
-        if(card.firstChild && card.querySelector('.balloon')){
-          // ignore dropping balloon onto balloon card on right
-          return;
-        }
-        card.innerHTML = dragging.outerHTML;
-        card.classList.remove('drop');
-        // Remove the original dragging element from left
-        dragging.parentElement.removeChild(dragging);
-      }
-    });
-    return card;
-  };
-
-  function shuffle(arr){
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]]=[arr[j],arr[i]];
-    }
-    return arr;
-  }
-
-  function render(){
-    left.innerHTML = '';
-    right.innerHTML = '';
-    const leftOrder = shuffle(nums.slice()); // random order
-    leftOrder.forEach(n=>{
-      const b = makeBalloon(n);
-      // DnD
-      b.addEventListener('dragstart', e=>{
-        b.classList.add('dragging');
-        try{ e.dataTransfer.setData('text/value', String(n)); }catch{}
-      });
-      b.addEventListener('dragend', ()=> b.classList.remove('dragging'));
-      left.appendChild(b);
-    });
-    nums.forEach(n=> right.appendChild(makeStarTarget(n))); // fixed order 0..10
-    res.textContent='';
-    res.className='result';
-  }
-
-  function checkMatches(){
-    // Count how many targets have correct balloon
-    const targets = Array.from(right.children);
-    let correct = 0;
-    targets.forEach(card=>{
-      const val = Number(card.dataset.value);
-      const balloon = card.querySelector('.balloon');
-      if(balloon && Number(balloon.textContent) === val) correct++;
-    });
-    const total = nums.length;
-    const allPlaced = targets.filter(c=> c.querySelector('.balloon')).length;
-    const msg = (correct===total) ? '✅ Perfect! All '+total+' matches are correct.' :
-                'You matched '+correct+' out of '+total+'. '+(allPlaced<total? 'Keep dragging the rest.' : 'Some are in the wrong place — try swapping.');
-    res.textContent = msg;
-    res.className = 'result ' + (correct===total? 'correct':'incorrect');
-  }
-
-  function reset(){
-    render();
-  }
-
-  // toolbar
-  document.getElementById('shuffleBtn').addEventListener('click', render);
-  document.getElementById('checkBtn').addEventListener('click', checkMatches);
-  document.getElementById('resetBtn').addEventListener('click', reset);
-
-  render();
+const nums=[0,1,2,3,4,5,6,7,8,9,10];
+const left=document.getElementById('left');const right=document.getElementById('right');const res=document.getElementById('result');
+function makeBalloon(n){const d=document.createElement('div');d.className='card balloon';d.draggable=true;d.textContent=n;d.dataset.value=n;d.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',n);});return d;}
+function makeStar(n){const d=document.createElement('div');d.className='card star';d.textContent=n;d.dataset.value=n;d.addEventListener('dragover',e=>{e.preventDefault();d.classList.add('drop');});d.addEventListener('dragleave',()=>d.classList.remove('drop'));d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('drop');const val=e.dataTransfer.getData('text/plain');if(val==n){d.textContent='⭐'+n;res.textContent='Good!';}else{res.textContent='Try again';}});return d;}
+function render(){left.innerHTML='';right.innerHTML='';nums.sort(()=>Math.random()-0.5).forEach(n=>left.appendChild(makeBalloon(n)));nums.forEach(n=>right.appendChild(makeStar(n)));}
+render();
 </script>
 </body>
 </html>

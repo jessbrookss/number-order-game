@@ -25,177 +25,44 @@
   button.secondary{background:#0ea5e9}
   button.ghost{background:#e5e7eb;color:#111827}
   button.success{background:var(--accent)}
-  button.warn{background:var(--warn)}
   .board{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:16px}
-  @media (max-width:900px){ .board{grid-template-columns:repeat(3,minmax(120px,1fr))} }
-  @media (max-width:600px){ .board{grid-template-columns:repeat(2,minmax(120px,1fr))} }
-  .card{user-select:none; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
-        padding:10px; display:flex; flex-direction:column; align-items:center; gap:8px}
-  .card[aria-grabbed="true"]{outline:3px solid #93c5fd}
-  .slot{display:grid; place-items:center; width:100%; aspect-ratio:1/1; border-radius:12px;
-        background:radial-gradient(circle at 50% 40%, #fff, #eef2f7 70%);}
-  .num{font-size:72px; font-weight:900; -webkit-text-stroke: 1px rgba(0,0,0,.08);}
+  .card{user-select:none;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .slot{display:grid;place-items:center;width:100%;aspect-ratio:1/1;border-radius:12px;background:radial-gradient(circle at 50% 40%, #fff, #eef2f7 70%)}
+  .num{font-size:72px;font-weight:900;-webkit-text-stroke:1px rgba(0,0,0,.08)}
   .caption{color:#374151}
   .drag-hint{font-size:.9rem;color:var(--muted);background:#e0f2fe;border-left:4px solid #38bdf8;padding:6px 10px;border-radius:8px}
   .result{margin-top:12px;font-weight:800}
-  .correct{color:var(--accent)}
-  .incorrect{color:var(--warn)}
-  .drop-target{outline:2px dashed #93c5fd}
+  .correct{color:var(--accent)}.incorrect{color:var(--warn)}
   footer{padding:40px 0;color:#64748b}
 </style>
 </head>
 <body>
-  <header>
-    <div class="container top">
-      <div class="brand">
-        <div class="logo"><span>🔢</span></div>
-        <div>Tech with Mrs. Brooks</div>
-      </div>
-    </div>
-  </header>
-
-  <main class="container">
-    <h1>Number Order Game (1–9)</h1>
-    <p class="lead">Drag to arrange the cards in the correct sequence, then press <strong>Check</strong>. Works on smartboards, Chromebooks, and iPads.</p>
-    <div class="drag-hint" role="note">Accessibility: Tab to a card → press Enter to “pick up” → use arrow keys to move left/right → Enter to “drop”.</div>
-
-    <div class="toolbar">
-      <a href="match.html" style="text-decoration:none"><button class="ghost" type="button">➡ Match Game</button></a>
-      <button id="shuffleBtn" class="secondary" type="button" aria-label="Shuffle the cards">Shuffle</button>
-      <button id="checkBtn" class="success" type="button">Check</button>
-      <button id="resetBtn" class="ghost" type="button">Reset</button>
-    </div>
-
-    <section aria-label="Number cards" class="board" id="board"></section>
-
-    <div id="result" class="result" aria-live="polite"></div>
-  </main>
-
-  <footer>
-    <div class="container">© <span id="yr"></span> Tech with Mrs. Brooks • Number Order Game</div>
-  </footer>
-
+<header><div class="container top"><div class="brand"><div class="logo"><span>🔢</span></div><div>Tech with Mrs. Brooks</div></div></div></header>
+<main class="container">
+<h1>Number Order Game (1–9)</h1>
+<p class="lead">Drag to arrange the cards in the correct sequence, then press <strong>Check</strong>.</p>
+<div class="toolbar">
+<button id="shuffleBtn" class="secondary">Shuffle</button>
+<button id="checkBtn" class="success">Check</button>
+<button id="resetBtn" class="ghost">Reset</button>
+<a href="match.html" style="text-decoration:none"><button class="ghost" type="button">➡ Match Game</button></a>
+</div>
+<section id="board" class="board"></section>
+<div id="result" class="result" aria-live="polite"></div>
+</main>
+<footer><div class="container">© <span id="yr"></span> Tech with Mrs. Brooks • Number Order Game</div></footer>
 <script>
-  const nums = [1,2,3,4,5,6,7,8,9];
-  const board = document.getElementById('board');
-  const result = document.getElementById('result');
-  const shuffleBtn = document.getElementById('shuffleBtn');
-  const checkBtn = document.getElementById('checkBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  document.getElementById('yr').textContent = new Date().getFullYear();
-
-  function cardTemplate(n){
-    const colors = ['#ef4444','#f59e0b','#facc15','#22c55e','#06b6d4','#10b981','#a78bfa','#fb923c','#60a5fa'];
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.draggable = true;
-    div.tabIndex = 0;
-    div.setAttribute('role','group');
-    div.setAttribute('aria-label', 'Number ' + n);
-    div.dataset.value = n;
-    div.innerHTML = '<div class="slot"><div class="num" style="color:'+colors[n-1]+'">'+n+'</div></div><div class="caption">'+n+'</div>';
-    return div;
-  }
-
-  function shuffle(array){
-    for(let i=array.length-1;i>0;i--){
-      const j = Math.floor(Math.random() * (i+1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
-  function render(order){
-    board.innerHTML = '';
-    order.forEach(n => board.appendChild(cardTemplate(n)));
-    attachDnD();
-  }
-
-  function getOrder(){
-    return Array.from(board.children).map(el => Number(el.dataset.value));
-  }
-
-  function check(){
-    const order = getOrder();
-    const isCorrect = order.every((n, i) => n === nums[i]);
-    result.textContent = isCorrect ? '✅ Great job! 1–9 in order.' : '❌ Not yet. Keep arranging 1–9.';
-    result.className = 'result ' + (isCorrect ? 'correct' : 'incorrect');
-  }
-
-  function reset(){
-    render(nums.slice());
-    result.textContent = '';
-    result.className = 'result';
-  }
-
-  function attachDnD(){
-    let dragged = null;
-
-    Array.from(board.children).forEach(card => {
-      card.addEventListener('dragstart', (e)=>{
-        dragged = card;
-        card.setAttribute('aria-grabbed','true');
-        e.dataTransfer.effectAllowed = 'move';
-        try { e.dataTransfer.setData('text/plain', card.dataset.value); } catch {}
-      });
-      card.addEventListener('dragend', ()=>{
-        card.removeAttribute('aria-grabbed');
-        Array.from(board.children).forEach(c => c.classList.remove('drop-target'));
-      });
-
-      card.addEventListener('dragover', (e)=>{
-        e.preventDefault();
-        card.classList.add('drop-target');
-      });
-      card.addEventListener('dragleave', ()=> card.classList.remove('drop-target'));
-      card.addEventListener('drop', (e)=>{
-        e.preventDefault();
-        card.classList.remove('drop-target');
-        if(!dragged || dragged === card) return;
-        const children = Array.from(board.children);
-        const draggedIndex = children.indexOf(dragged);
-        const targetIndex = children.indexOf(card);
-        if(draggedIndex < targetIndex){
-          board.insertBefore(dragged, card.nextSibling);
-        } else {
-          board.insertBefore(dragged, card);
-        }
-      });
-
-      card.addEventListener('keydown', (e)=>{
-        const children = Array.from(board.children);
-        const index = children.indexOf(card);
-        if(e.key === 'Enter'){
-          const grabbed = card.getAttribute('aria-grabbed') === 'true';
-          if(grabbed){
-            card.setAttribute('aria-grabbed','false');
-            result.textContent = 'Dropped ' + card.dataset.value;
-          } else {
-            card.setAttribute('aria-grabbed','true');
-            result.textContent = 'Picked up ' + card.dataset.value + '. Use arrow keys to move.';
-          }
-          e.preventDefault();
-        } else if(card.getAttribute('aria-grabbed') === 'true'){
-          if(e.key === 'ArrowLeft' && index > 0){
-            board.insertBefore(card, children[index-1]);
-            card.focus();
-            e.preventDefault();
-          }
-          if(e.key === 'ArrowRight' && index < children.length-1){
-            board.insertBefore(card, children[index+1].nextSibling);
-            card.focus();
-            e.preventDefault();
-          }
-        }
-      });
-    });
-  }
-
-  shuffleBtn.addEventListener('click', ()=> render(shuffle(nums.slice())));
-  checkBtn.addEventListener('click', check);
-  resetBtn.addEventListener('click', reset);
-
-  render(shuffle(nums.slice()));
+const nums=[1,2,3,4,5,6,7,8,9];
+const board=document.getElementById('board');const result=document.getElementById('result');
+document.getElementById('yr').textContent=new Date().getFullYear();
+function cardTemplate(n){const colors=['#ef4444','#f59e0b','#facc15','#22c55e','#06b6d4','#10b981','#a78bfa','#fb923c','#60a5fa'];const d=document.createElement('div');d.className='card';d.draggable=true;d.dataset.value=n;d.innerHTML='<div class="slot"><div class="num" style="color:'+colors[n-1]+'">'+n+'</div></div><div class="caption">'+n+'</div>';return d;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function render(order){board.innerHTML='';order.forEach(n=>board.appendChild(cardTemplate(n)));}
+function getOrder(){return Array.from(board.children).map(el=>+el.dataset.value);}
+function check(){const order=getOrder();const ok=order.every((n,i)=>n===nums[i]);result.textContent=ok?'✅ Great job!':'❌ Not yet';result.className='result '+(ok?'correct':'incorrect');}
+document.getElementById('shuffleBtn').onclick=()=>render(shuffle(nums.slice()));
+document.getElementById('checkBtn').onclick=check;
+document.getElementById('resetBtn').onclick=()=>render(nums.slice());
+render(shuffle(nums.slice()));
 </script>
-</body>
-</html>
+</body></html>

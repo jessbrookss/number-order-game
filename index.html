@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Order Game (1–9) – Tech with Mrs. Brooks</title>
+<meta name="description" content="Drag the number cards 1–9 into the correct order and check your work. K–2 friendly, keyboard accessible.">
+<style>
+  :root{
+    --bg:#f8fafc; --surface:#ffffff; --ink:#0f172a; --muted:#475569; --line:#e2e8f0;
+    --brand:#2563eb; --accent:#22c55e; --warn:#ef4444; --shadow:0 10px 30px rgba(2,6,23,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
+  header{background:#111827;color:#e5e7eb}
+  .container{width:min(1100px,94%);margin-inline:auto;padding:24px 0}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0}
+  .brand{display:flex;gap:10px;align-items:center;font-weight:800}
+  .brand .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:grid;place-items:center;box-shadow:var(--shadow)}
+  .brand .logo span{filter:drop-shadow(0 1px 1px rgba(0,0,0,.2));}
+  h1{margin:0 0 8px;font-size:clamp(1.3rem,1.2rem + 1.2vw,2rem)}
+  p.lead{margin:0 0 16px;color:var(--muted)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}
+  button{border:0;background:var(--brand);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
+  button.secondary{background:#0ea5e9}
+  button.ghost{background:#e5e7eb;color:#111827}
+  button.success{background:var(--accent)}
+  button.warn{background:var(--warn)}
+  .board{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:16px}
+  @media (max-width:900px){ .board{grid-template-columns:repeat(3,minmax(120px,1fr))} }
+  @media (max-width:600px){ .board{grid-template-columns:repeat(2,minmax(120px,1fr))} }
+  .card{user-select:none; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+        padding:10px; display:flex; flex-direction:column; align-items:center; gap:8px}
+  .card[aria-grabbed="true"]{outline:3px solid #93c5fd}
+  .slot{display:grid; place-items:center; width:100%; aspect-ratio:1/1; border-radius:12px;
+        background:radial-gradient(circle at 50% 40%, #fff, #eef2f7 70%);}
+  .num{font-size:72px; font-weight:900; -webkit-text-stroke: 1px rgba(0,0,0,.08);}
+  .caption{color:#374151}
+  .drag-hint{font-size:.9rem;color:var(--muted);background:#e0f2fe;border-left:4px solid #38bdf8;padding:6px 10px;border-radius:8px}
+  .result{margin-top:12px;font-weight:800}
+  .correct{color:var(--accent)}
+  .incorrect{color:var(--warn)}
+  .drop-target{outline:2px dashed #93c5fd}
+  footer{padding:40px 0;color:#64748b}
+</style>
+</head>
+<body>
+  <header>
+    <div class="container top">
+      <div class="brand">
+        <div class="logo"><span>🔢</span></div>
+        <div>Tech with Mrs. Brooks</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1>Number Order Game (1–9)</h1>
+    <p class="lead">Drag to arrange the cards in the correct sequence, then press <strong>Check</strong>. Works on smartboards, Chromebooks, and iPads.</p>
+    <div class="drag-hint" role="note">Accessibility: Tab to a card → press Enter to “pick up” → use arrow keys to move left/right → Enter to “drop”.</div>
+
+    <div class="toolbar">
+      <button id="shuffleBtn" class="secondary" type="button" aria-label="Shuffle the cards">Shuffle</button>
+      <button id="checkBtn" class="success" type="button">Check</button>
+      <button id="resetBtn" class="ghost" type="button">Reset</button>
+    </div>
+
+    <section aria-label="Number cards" class="board" id="board"></section>
+
+    <div id="result" class="result" aria-live="polite"></div>
+  </main>
+
+  <footer>
+    <div class="container">© <span id="yr"></span> Tech with Mrs. Brooks • Number Order Game</div>
+  </footer>
+
+<script>
+  const nums = [1,2,3,4,5,6,7,8,9];
+  const board = document.getElementById('board');
+  const result = document.getElementById('result');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const checkBtn = document.getElementById('checkBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  function cardTemplate(n){
+    const colors = ['#ef4444','#f59e0b','#facc15','#22c55e','#06b6d4','#10b981','#a78bfa','#fb923c','#60a5fa'];
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.draggable = true;
+    div.tabIndex = 0;
+    div.setAttribute('role','group');
+    div.setAttribute('aria-label', 'Number ' + n);
+    div.dataset.value = n;
+    div.innerHTML = '<div class="slot"><div class="num" style="color:'+colors[n-1]+'">'+n+'</div></div><div class="caption">'+n+'</div>';
+    return div;
+  }
+
+  function shuffle(array){
+    for(let i=array.length-1;i>0;i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function render(order){
+    board.innerHTML = '';
+    order.forEach(n => board.appendChild(cardTemplate(n)));
+    attachDnD();
+  }
+
+  function getOrder(){
+    return Array.from(board.children).map(el => Number(el.dataset.value));
+  }
+
+  function check(){
+    const order = getOrder();
+    const isCorrect = order.every((n, i) => n === nums[i]);
+    result.textContent = isCorrect ? '✅ Great job! 1–9 in order.' : '❌ Not yet. Keep arranging 1–9.';
+    result.className = 'result ' + (isCorrect ? 'correct' : 'incorrect');
+  }
+
+  function reset(){
+    render(nums.slice());
+    result.textContent = '';
+    result.className = 'result';
+  }
+
+  function attachDnD(){
+    let dragged = null;
+
+    Array.from(board.children).forEach(card => {
+      card.addEventListener('dragstart', (e)=>{
+        dragged = card;
+        card.setAttribute('aria-grabbed','true');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', card.dataset.value); } catch {}
+      });
+      card.addEventListener('dragend', ()=>{
+        card.removeAttribute('aria-grabbed');
+        Array.from(board.children).forEach(c => c.classList.remove('drop-target'));
+      });
+
+      card.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        card.classList.add('drop-target');
+      });
+      card.addEventListener('dragleave', ()=> card.classList.remove('drop-target'));
+      card.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        card.classList.remove('drop-target');
+        if(!dragged || dragged === card) return;
+        const children = Array.from(board.children);
+        const draggedIndex = children.indexOf(dragged);
+        const targetIndex = children.indexOf(card);
+        if(draggedIndex < targetIndex){
+          board.insertBefore(dragged, card.nextSibling);
+        } else {
+          board.insertBefore(dragged, card);
+        }
+      });
+
+      card.addEventListener('keydown', (e)=>{
+        const children = Array.from(board.children);
+        const index = children.indexOf(card);
+        if(e.key === 'Enter'){
+          const grabbed = card.getAttribute('aria-grabbed') === 'true';
+          if(grabbed){
+            card.setAttribute('aria-grabbed','false');
+            result.textContent = 'Dropped ' + card.dataset.value;
+          } else {
+            card.setAttribute('aria-grabbed','true');
+            result.textContent = 'Picked up ' + card.dataset.value + '. Use arrow keys to move.';
+          }
+          e.preventDefault();
+        } else if(card.getAttribute('aria-grabbed') === 'true'){
+          if(e.key === 'ArrowLeft' && index > 0){
+            board.insertBefore(card, children[index-1]);
+            card.focus();
+            e.preventDefault();
+          }
+          if(e.key === 'ArrowRight' && index < children.length-1){
+            board.insertBefore(card, children[index+1].nextSibling);
+            card.focus();
+            e.preventDefault();
+          }
+        }
+      });
+    });
+  }
+
+  shuffleBtn.addEventListener('click', ()=> render(shuffle(nums.slice())));
+  checkBtn.addEventListener('click', check);
+  resetBtn.addEventListener('click', reset);
+
+  render(shuffle(nums.slice()));
+</script>
+</body>
+</html>
